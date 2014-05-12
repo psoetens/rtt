@@ -75,10 +75,19 @@ namespace RTT
             TemplateTypeInfo<T,has_ostream>::installTypeInfoObject(ti);
             // Install the factories for primitive types
             ti->setMemberFactory( mthis );
-
+            ti->setTypeInfoClass( TypeInfo::Struct );
             // Don't delete us, we're memory-managed.
             return false;
         }
+
+            virtual const TypeInfo* getMemberType(unsigned int nbr) const {
+                type_discovery in;
+                T t; // boost can't work without a value.
+                in.discover( t );
+                if ( nbr < in.mparts.size() )
+                    return in.mparts[nbr]->getTypeInfo();
+                return 0;
+            }
 
             virtual std::vector<std::string> getMemberNames() const {
                 // only discover the part names of this struct:

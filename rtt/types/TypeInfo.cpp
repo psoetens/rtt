@@ -53,6 +53,11 @@ namespace RTT
     using namespace detail;
     using namespace internal;
 
+    TypeInfo::TypeInfo(const std::string& name)
+        : mtypenames(1,name), mtid_name(0), mtid(0), mtic(Unknown)
+    {}
+
+
     TypeInfo::~TypeInfo()
     {
         // cleanup transporters
@@ -62,6 +67,29 @@ namespace RTT
         // cleanup constructors
         for (Constructors::iterator i= constructors.begin(); i != constructors.end(); ++i)
             delete (*i);
+    }
+
+    void TypeInfo::setTypeId(TypeId tid) {
+        if ( tid == mtid )
+            return;
+        if (mtid != 0) {
+            log(Warning) << "Overriding TypeId of " << getTypeName() << " : was '" << mtid->name() << "' becomes '"<<tid->name()<<"'. This should not happen." << endlog();
+        }
+        mtid = tid;
+        mtid_name = tid->name();
+    }
+
+    void TypeInfo::setTypeInfoClass(TypeInfoClass tic) {
+        if (tic == mtic)
+            return;
+        if (mtic != Unknown) {
+            log(Warning) << "Overriding TypeInfoClass of " << getTypeName() << " : was '" << mtic << "' becomes '"<<tic<<"'. This should not happen." << endlog();
+        }
+        mtic = tic;
+    }
+
+    TypeInfo::TypeInfoClass TypeInfo::getTypeInfoClass() const {
+        return mtic;
     }
 
     std::vector<std::string> TypeInfo::getTypeNames() const

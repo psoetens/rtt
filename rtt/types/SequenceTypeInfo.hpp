@@ -31,6 +31,7 @@ namespace RTT
                 SequenceTypeInfoBase<T>::installTypeInfoObject(ti);
                 // Install the factories for primitive types
                 ti->setMemberFactory( mthis );
+                ti->setTypeInfoClass( TypeInfo::Sequence );
                 // Don't delete us, we're memory-managed.
                 return false;
             }
@@ -54,6 +55,10 @@ namespace RTT
             {
                 return SequenceTypeInfoBase<T>::decomposeType(source);
             }
+            const TypeInfo* getMemberType(unsigned int nbr) const {
+                return SequenceTypeInfoBase<T>::getMemberType(nbr);
+            }
+
             virtual std::vector<std::string> getMemberNames() const {
                 return SequenceTypeInfoBase<T>::getMemberNames();
             }

@@ -73,6 +73,10 @@ namespace RTT
             // Install the type info object for T
             internal::DataSourceTypeInfo<T>::value_type_info::TypeInfoObject = ti;
             ti->setTypeId( &typeid(T) );
+            if ( boost::is_arithmetic<T>::value || boost::is_enum<T>::value )
+                ti->setTypeInfoClass( TypeInfo::Number );
+            if ( boost::is_same<T,std::string>::value || boost::is_same<T,char>::value )
+                ti->setTypeInfoClass( TypeInfo::String );
 
             // Clean up reference to ourselves.
             mshared.reset();

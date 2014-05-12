@@ -9,6 +9,11 @@ bool MemberFactory::resize(base::DataSourceBase::shared_ptr arg, int size) const
     return false;
 }
 
+const TypeInfo* MemberFactory::getMemberType(unsigned int nbr) const
+{
+    return 0;
+}
+
     vector<string> MemberFactory::getMemberNames() const
     {
         return vector<string>();

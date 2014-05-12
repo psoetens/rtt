@@ -28,6 +28,18 @@ namespace RTT
         virtual bool resize(base::DataSourceBase::shared_ptr arg, int size) const;
 
         /**
+         * In case getTypeInfoClass() is Sequence or Struct, will return the TypeInfo object
+         * of the item contained in the sequence or struct.
+         * @param nbr The logical member of which you want to know the type. Starts at zero.
+         * For a fixed-type sequence, there is only one member type at \a nbr == 0, being
+         * the element type of the sequence. For a variable-typed sequence, there are as many
+         * types as elements in the sequence, so  0 <= \a nbr < sequence size. For structs,
+         * \a nbr corresponds to the position of each member in the structure.
+         * @see getMemberNames() to get the name of each type in case of a struct.
+         */
+        virtual const TypeInfo* getMemberType(unsigned int nbr) const;
+
+        /**
          * Returns the list of struct member names of this type.
          * In case this type is not a struct, returns an empty list.
          */

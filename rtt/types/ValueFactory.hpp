@@ -72,7 +72,6 @@ namespace RTT
          */
         virtual base::DataSourceBase::shared_ptr buildActionAlias(base::ActionInterface* action, base::DataSourceBase::shared_ptr source) const = 0;
         /** @} */
-
         };
 
         typedef boost::shared_ptr<ValueFactory> ValueFactoryPtr;

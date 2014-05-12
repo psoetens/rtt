@@ -197,6 +197,11 @@ namespace RTT
                 return base::DataSourceBase::shared_ptr();
             }
 
+            const TypeInfo* getMemberType(unsigned int nbr) const {
+                if (nbr == 0)
+                    return internal::DataSourceTypeInfo<typename T::value_type>::getTypeInfo();
+                return 0;
+            }
 
             std::vector<std::string> getMemberNames() const {
                 // only discover the parts of this struct:

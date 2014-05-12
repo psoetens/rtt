@@ -68,7 +68,19 @@ namespace RTT
     public:
         typedef const std::type_info * TypeId;
 
-        TypeInfo(const std::string& name) : mtypenames(1,name) {}
+        /**
+         * A TypeInfo object belongs to exactly one class of types.
+         */
+        typedef enum {
+            Unknown  = 0, /** For any uninitialised TypeInfo object, this is unknown. */
+            String   = 1, /** For characters, strings */
+            Number   = 2, /** For integers, floats */
+            Sequence = 3, /** For (fixed or variable sized) vectors, arrays, of obects of equal types */
+            Struct   = 4, /** For fixed sized structures of objects of different types */
+            Opaque   = 5  /** For special types, known but unintrospectable by the TypeInfo class methods. */
+        } TypeInfoClass;
+
+        TypeInfo(const std::string& name);
 
         ~TypeInfo();
         /**
@@ -157,6 +169,11 @@ namespace RTT
          * Return a list of protocols that have transporters
          */
         std::vector<int> getTransportNames() const;
+
+        /**
+         * Returns the class of this type.
+         */
+        TypeInfoClass getTypeInfoClass() const;
 
 #ifndef NO_TYPE_INFO_FACTORY_FUNCTIONS
         /**
@@ -309,8 +326,23 @@ namespace RTT
          */
 
         /**
-         * Returns the list of struct member names of this type.
-         * In case this type is not a struct, returns an empty list.
+         * In case getTypeInfoClass() is Sequence or Struct, will return the TypeInfo object
+         * of the item contained in the sequence or struct.
+         * @param nbr The logical member of which you want to know the type. Starts at zero.
+         * For a fixed-type sequence, there is only one member type at position zero, being
+         * the element type of the sequence. For a variable-typed sequence, there are as many
+         * types as elements in the sequence, so nbr equals the size of the sequence. For structs,
+         * nbr corresponds to the position of each member in the structure.
+         * @see getMemberNames() to get the name of each type in case of a struct.
+         */
+        const TypeInfo* getMemberType(unsigned int nbr) const
+        {
+            return mmembf ? mmembf->getMemberType(nbr) : 0;
+        }
+
+        /**
+         * In case getTypeInfoClass() is Struct, will return the list of struct member names of this type.
+         * In case this type is not a Struct, returns an empty list.
          */
         std::vector<std::string> getMemberNames() const
         {
@@ -435,10 +467,15 @@ namespace RTT
 
 #endif // NO_TYPE_INFO_FACTORY_FUNCTIONS
 
-        void setTypeId(TypeId tid) {
-            mtid = tid;
-            mtid_name = tid->name();
-        }
+        /**
+         * Stores the C++ TypeId of this type.
+         */
+        void setTypeId(TypeId tid);
+
+        /**
+         * Stores the TypeInfo class type of this type.
+         */
+        void setTypeInfoClass(TypeInfoClass tic);
 
         /**
          * Installs a new port factory such that in-process data
@@ -471,6 +508,7 @@ namespace RTT
         std::vector<std::string> mtypenames;
         const char* mtid_name;
         TypeId mtid;
+        TypeInfoClass mtic;
         boost::shared_ptr<internal::ConnFactory> mconnf;
         boost::shared_ptr<MemberFactory> mmembf;
         boost::shared_ptr<ValueFactory> mdsf;
