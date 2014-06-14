@@ -393,6 +393,7 @@ bool PluginLoader::loadService(string const& servicename, TaskContext* tc) {
 // This is a DUMB function and does not scan subdirs, possible filenames etc.
 bool PluginLoader::loadPluginsInternal( std::string const& path_list, std::string const& subdir, std::string const& kind )
 {
+    In in("PluginLoader");
 	// If exact match, load it directly:
     path arg( path_list );
     if (is_regular_file(arg)) {
@@ -402,8 +403,8 @@ bool PluginLoader::loadPluginsInternal( std::string const& path_list, std::strin
         if ( loadInProcess(arg.string(), makeShortFilename(arg.filename()), kind, true) == false)
 #endif
             throw std::runtime_error("The plugin "+path_list+" was found but could not be loaded !");
-        log(Warning) << "You supplied a filename to 'loadPlugins(path)' or 'loadTypekits(path)'."<< nlog();
-        log(Warning) << "Please use 'loadLibrary(filename)' instead since the function you use will only scan directories in future releases."<<endlog();
+        in.log(Warning) << "You supplied a filename to 'loadPlugins(path)' or 'loadTypekits(path)'."<< nlog();
+        in.log(Warning) << "Please use 'loadLibrary(filename)' instead since the function you use will only scan directories in future releases."<<endlog();
         return true;
     }
 
@@ -422,10 +423,10 @@ bool PluginLoader::loadPluginsInternal( std::string const& path_list, std::strin
         path p = path(*it) / subdir;
         if (is_directory(p))
         {
-            log(Info) << "Loading "<<kind<<" libraries from directory " << p.string() << " ..."<<endlog();
+            in.log(Info) << "Loading "<<kind<<" libraries from directory " << p.string() << " ..."<<endlog();
             for (directory_iterator itr(p); itr != directory_iterator(); ++itr)
             {
-                log(Debug) << "Scanning file " << itr->path().string() << " ...";
+                in.log(Debug) << "Scanning file " << itr->path().string() << " ...";
                 if (is_regular_file(itr->status()) && isLoadableLibrary(itr->path()) ) {
                     found = true;
                     std::string libname;
@@ -436,7 +437,7 @@ bool PluginLoader::loadPluginsInternal( std::string const& path_list, std::strin
 #endif
                     if(!isCompatiblePlugin(libname))
                     {
-                        log(Debug) << "not a compatible plugin: ignored."<<endlog();
+                        in.log(Debug) << "not a compatible plugin: ignored."<<endlog();
                     }
                     else
                     {
@@ -445,14 +446,14 @@ bool PluginLoader::loadPluginsInternal( std::string const& path_list, std::strin
                     }
                 } else {
                     if (!is_regular_file(itr->status()))
-                        log(Debug) << "not a regular file: ignored."<<endlog();
+                        in.log(Debug) << "not a regular file: ignored."<<endlog();
                     else
-                        log(Debug) << "not a " + SO_EXT + " library: ignored."<<endlog();
+                        in.log(Debug) << "not a " + SO_EXT + " library: ignored."<<endlog();
                 }
             }
         }
         else
-            log(Debug) << "No such directory: " << p << endlog();
+            in.log(Debug) << "No such directory: " << p << endlog();
     }
     if (!all_good)
         throw std::runtime_error("Some found plugins could not be loaded !");

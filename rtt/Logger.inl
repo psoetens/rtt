@@ -17,15 +17,8 @@ namespace RTT
         if ( !mayLog() )
             return *this;
 
-        os::MutexLock lock( inpguard );
-        if ( this->mayLogStdOut() )
+        if ( this->mayLog(inloglevel) )
             logline << t;
-
-#if defined(OROSEM_FILE_LOGGING) || defined(OROSEM_REMOTE_LOGGING)
-        // log Info or better to log file, even if not started.
-        if ( this->mayLogFile() )
-            fileline << t;
-#endif
 #endif
         return *this;
     }
@@ -33,11 +26,11 @@ namespace RTT
 #ifdef OROBLD_DISABLE_LOGGING
 
     // instance will be actually null
-    inline Logger& Logger::log() {
+    inline Logger Logger::log() {
         return *_instance;
     }
 
-    inline Logger& Logger::log(LogLevel) {
+    inline Logger Logger::log(LogLevel) {
         return *_instance;
     }
 

@@ -58,6 +58,17 @@
 namespace RTT
 {
     /**
+     * Enumerate all log-levels from absolute silence to
+     * everything.
+     * @warning If you enable 'RealTime' logging, this may break realtime performance. Use With Care and NOT
+     * on production systems.
+     * @see Logger::allowRealTime()
+     */
+    enum LoggerLevel { Never = 0, Fatal, Critical, Error, Warning, Info, Debug, RealTime };
+
+    struct In;
+
+    /**
      * A simple logging class to debug/ analyse what is
      * going on in the Orocos system. You MUST NOT use this
      * logger in a HARD realtime task or thread.
@@ -102,9 +113,11 @@ namespace RTT
          * formatting etc.
          */
         os::Mutex& inpguard;
-        std::ostream& logline;
-        std::ostream& fileline;
+        std::string module;
+        std::stringstream logline;
+
     public:
+        typedef RTT::In In;
 
         /**
          * Function to get the loggers starting timestamp
@@ -143,36 +156,10 @@ namespace RTT
         void mayLogFile(bool tf);
 
         /**
-         * Notify the Logger in which 'module' the message occured. This returns an object
-         * whose scope (i.e. {...} ) is indicative for the boundaries of the module.
-         * This is reset to the previous module name (default is 'Logger') after the in object is destroyed. Practical
-         * usage must thus have the form:
-         * @verbatim
-         {
-             Logger::In("Mymodule");
-             Logger::log() << Logger::Warning << "My warning message"<<Logger::nl;
-             Logger::log() << "A second message, still in MyModule"<<Logger::nl;
-         }
-         Logger::log() << Logger::Info << "A message in module 'Logger'..."<<Logger::endl;
-         @endverbatim
-        */
-        struct RTT_API In {
-            In(const std::string& module);
-            ~In();
-			std::string oldmod;
-        };
-
-        /**
          * Inform the Logger of the entry of a module.
          * @see In. Use Logger::In(\a modname) for management.
          */
         Logger& in(const std::string& modname);
-
-        /**
-         * The counterpart of in().
-         * @see In. Use Logger::In(\a modname) for management.
-         */
-        Logger& out(const std::string& modname);
 
         /**
          * Get the name of the current Log generating Module.
@@ -184,6 +171,11 @@ namespace RTT
          * log stream.
          */
         typedef std::ostream& (*LogFunction)(std::ostream&);
+
+        /**
+         * Does nothing, except returning __os.
+         */
+        static std::ostream& nop(std::ostream& __os);
 
         /**
          * Insert a newline '\n' in the ostream. (Why is this not in the standard ?)
@@ -217,12 +209,12 @@ namespace RTT
         /**
          * As Instance(), but more userfriendly.
          */
-        static Logger& log();
+        static Logger log();
 
         /**
          * As log(), but also specify the LogLevel of the next message.
          */
-        static Logger& log(LogLevel ll);
+        static Logger log(LogLevel ll);
 
         /**
          * Print a 'welcome' string in Info  and reset log timestamp.
@@ -317,8 +309,25 @@ namespace RTT
          */
         static const std::string log4cppCategoryName;
 #endif
+        /**
+         * Creates a default logger object.
+         */
+        Logger();
 
+        /**
+         * Copy constructor, allows you to create a new log line in a new module,
+         * with a new log level.
+         */
+        Logger(Logger const& orig);
+
+        /**
+         * Upon destruction, any log line still left in this object is
+         * logged as well.
+         */
+        ~Logger();
     private:
+        LogLevel inloglevel;
+
         /**
          * Returns true if the next message will be logged.
          * Returns false if the LogLevel is RealTime and
@@ -326,34 +335,48 @@ namespace RTT
          * was not started.
          */
         bool mayLog() const;
-        bool mayLogStdOut() const;
-        bool mayLogFile() const;
+        bool mayLog(LogLevel inloglevel) const;
+        bool mayLogStdOut(LogLevel inloglevel) const;
+        bool mayLogFile(LogLevel inloglevel) const;
 
-        Logger(std::ostream& str=std::cerr);
-        ~Logger();
+        Logger(std::ostream& str);
 
         static Logger* _instance;
     };
 
     /**
-     * Enumerate all log-levels from absolute silence to
-     * everything.
-     * @warning If you enable 'RealTime' logging, this may break realtime performance. Use With Care and NOT
-     * on production systems.
-     * @see Logger::allowRealTime()
-     */
-    enum LoggerLevel { Never = 0, Fatal, Critical, Error, Warning, Info, Debug, RealTime };
+     * Notify the Logger in which 'module' the message occured. This returns an object
+     * whose scope (i.e. {...} ) is indicative for the boundaries of the module.
+     * This is reset to the previous module name (default is 'Logger') after the in object is destroyed. Practical
+     * usage must thus have the form:
+     * @verbatim
+     {
+     Logger::In in("Mymodule");
+     in.log() << Logger::Warning << "My warning message"<<Logger::nl;
+     in.log() << "A second message, still in MyModule"<<Logger::nl;
+     }
+     Logger::log() << Logger::Info << "A message in module 'Logger'..."<<Logger::endl;
+     @endverbatim
+    */
+    struct RTT_API In {
+        In(const std::string& module);
+        ~In();
+        Logger& log();
+        Logger& log(Logger::LogLevel ll);
+        Logger& log(LoggerLevel ll);
+        Logger logger;
+    };
 
     /**
      * Free function in order to access the Logger instance.
      */
-    static inline Logger& log() { return Logger::log(); }
+    static inline Logger log() { return Logger::log(); }
 
     /**
      * Free function in order to access the Logger instance and set the
      * LoggerLevel of next message.
      */
-    static inline Logger& log(LoggerLevel ll) { return Logger::log(Logger::LogLevel(ll)); }
+    static inline Logger log(LoggerLevel ll) { return Logger::log(Logger::LogLevel(ll)); }
 
     /**
      * Function to tell the logger that the log message ended.

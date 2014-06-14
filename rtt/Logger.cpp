@@ -70,23 +70,6 @@ namespace RTT
     using namespace std;
     using namespace detail;
 
-    Logger* Logger::_instance = 0;
-
-    Logger* Logger::Instance(std::ostream& str) {
-        if (_instance == 0) {
-            _instance =  new Logger(str);
-        }
-        return _instance;
-    }
-
-    void Logger::Release() {
-      if (_instance) {
-        _instance->shutdown();
-        delete _instance;
-        _instance = 0;
-      }
-    }
-
 #ifndef OROBLD_DISABLE_LOGGING
 
 #ifdef  OROSEM_LOG4CPP_LOGGING
@@ -114,12 +97,14 @@ namespace RTT
 
 #endif
 
-    Logger& Logger::log() {
+    Logger Logger::log() {
         return *Instance();
     }
 
-    Logger& Logger::log(LogLevel ll) {
-        return Instance()->operator<<( ll );
+    Logger Logger::log(LogLevel ll) {
+        Logger result( *Instance() );
+        result.inloglevel = ll;
+        return result;
     }
 
     /**
@@ -142,12 +127,10 @@ namespace RTT
               logfile(logfile_name ? logfile_name : "orocos.log"),
 #endif
 #endif
-              inloglevel(Info),
               outloglevel(Warning),
               timestamp(0),
               started(false), showtime(true), allowRT(false),
-              mlogStdOut(true), mlogFile(true),
-              moduleptr("Logger")
+              mlogStdOut(true), mlogFile(true)
         {
 #if defined(OROSEM_FILE_LOGGING) && !defined(OROSEM_LOG4CPP_LOGGING) && defined(OROSEM_PRINTF_LOGGING)
             logfile = fopen(logfile_name ? logfile_name : "orocos.log","w");
@@ -160,13 +143,19 @@ namespace RTT
             return true;
         }
 
-        bool maylogStdOut() const {
+        bool maylog(LogLevel inloglevel) const {
+            if ( inloglevel <= outloglevel && outloglevel != Never && inloglevel != Never)
+                return true;
+            return false;
+        }
+
+        bool maylogStdOut(LogLevel inloglevel) const {
             if ( inloglevel <= outloglevel && outloglevel != Never && inloglevel != Never && mlogStdOut)
                 return true;
             return false;
         }
 
-        bool maylogFile() const {
+        bool maylogFile(LogLevel inloglevel) const {
             if ( (inloglevel <= Info || inloglevel <= outloglevel)  && mlogFile)
                 return true;
             return false;
@@ -177,30 +166,29 @@ namespace RTT
          * written to screen, disk, or stream. 'logline' or 'remotestream'
          * contain a single log message. Time and location is prepended.
          */
-        void logit(std::ostream& (*pf)(std::ostream&))
+        void logit(LogLevel inloglevel, const std::string& module, const std::stringstream& logline, std::ostream& (*pf)(std::ostream&))
         {
             // only on Logger::nl or Logger::endl, a time+log-line is written.
             os::MutexLock lock( inpguard );
-            std:: string res = showTime() +" " + showLevel(inloglevel) + showModule() + " ";
+            std:: string res = showTime() + showLevel(inloglevel) + module + "] ";
 
             // do not log if not wanted.
-            if ( maylogStdOut() ) {
+            if ( maylogStdOut(inloglevel) ) {
 #ifndef OROSEM_PRINTF_LOGGING
                 *stdoutput << res << logline.str() << pf;
 #else
                 printf("%s%s\n", res.c_str(), logline.str().c_str() );
 #endif
-                logline.str("");   // clear stringstream.
             }
 
-            if ( maylogFile() ) {
+            if ( maylogFile(inloglevel) ) {
 #ifdef OROSEM_FILE_LOGGING
 #if     defined(OROSEM_LOG4CPP_LOGGING)
-                category.log(level2Priority(inloglevel), fileline.str());
+                category.log(level2Priority(inloglevel), logline.str());
 #elif   !defined(OROSEM_PRINTF_LOGGING)
-                logfile << res << fileline.str() << pf;
+                logfile << res << logline.str() << pf;
 #else
-                fprintf( logfile, "%s%s\n", res.c_str(), fileline.str().c_str() );
+                fprintf( logfile, "%s%s\n", res.c_str(), logline.str().c_str() );
 #endif
 #ifdef OROSEM_REMOTE_LOGGING
                 // detect buffer 'overflow'
@@ -209,11 +197,8 @@ namespace RTT
                     remotestream >> dummy; // FIFO principle: read 1 line
                     --messagecnt;
                 }
-                remotestream << res << fileline.str() << pf;
+                remotestream << res << logline.str() << pf;
                 ++messagecnt;
-#endif
-#if defined(OROSEM_FILE_LOGGING) || defined(OROSEM_REMOTE_LOGGING)
-                fileline.str("");
 #endif
 #endif
             }
@@ -223,9 +208,6 @@ namespace RTT
         std::ostream* stdoutput;
 #endif
         std::stringstream logline;
-#if defined(OROSEM_FILE_LOGGING) || defined(OROSEM_REMOTE_LOGGING)
-        std::stringstream fileline;
-#endif
 #if defined(OROSEM_REMOTE_LOGGING)
         std::stringstream remotestream;
         unsigned int messagecnt;
@@ -240,7 +222,7 @@ namespace RTT
         FILE* logfile;
 # endif
 #endif
-        LogLevel inloglevel, outloglevel;
+        LogLevel outloglevel;
 
         TimeService::ticks timestamp;
 
@@ -283,25 +265,25 @@ namespace RTT
             switch (ll)
                 {
                 case Fatal:
-                    prefix="[ FATAL  ]";
+                    prefix=" [ FATAL  ][";
                     break;
                 case Critical:
-                    prefix="[CRITICAL]";
+                    prefix=" [CRITICAL][";
                     break;
                 case Error:
-                    prefix="[ ERROR  ]";
+                    prefix=" [ ERROR  ][";
                     break;
                 case Warning:
-                    prefix="[ Warning]";
+                    prefix=" [ Warning][";
                     break;
                 case Info:
-                    prefix="[ Info   ]";
+                    prefix=" [ Info   ][";
                     break;
                 case Debug:
-                    prefix="[ Debug  ]";
+                    prefix=" [ Debug  ][";
                     break;
                 case RealTime:
-                    prefix="[RealTime]";
+                    prefix=" [RealTime][";
                     break;
                 case Never:
                     break;
@@ -309,13 +291,6 @@ namespace RTT
             return prefix;
         }
 
-
-
-        std::string showModule() const
-        {
-            // moduleptr is protected by lock in logIt()
-            return "["+moduleptr+"]";
-        }
 
         bool started;
 
@@ -325,33 +300,73 @@ namespace RTT
 
         bool mlogStdOut, mlogFile;
 
-        std::string moduleptr;
-
         os::Mutex inpguard;
     };
 
+    Logger* Logger::_instance = 0;
+
+    Logger* Logger::Instance(std::ostream& str) {
+        if (_instance == 0) {
+            _instance =  new Logger(str);
+        }
+        return _instance;
+    }
+
+    void Logger::Release() {
+      if (_instance) {
+        _instance->shutdown();
+        delete _instance->d;
+        delete _instance;
+        _instance = 0;
+      }
+    }
+
     Logger::Logger(std::ostream& str)
-        :d ( new Logger::D(str, getenv("ORO_LOGFILE")) ),
-         inpguard(d->inpguard), logline(d->logline), fileline(d->fileline)
+        : d ( new Logger::D(str, getenv("ORO_LOGFILE")) ),
+          inpguard(d->inpguard), module("Logger"), logline(), inloglevel(Info)
     {
       this->startup();
     }
 
+    Logger::Logger()
+        : d ( Instance()->d ),
+          inpguard(d->inpguard),
+          module(),
+          logline(),
+          inloglevel(Info)
+    {
+    }
+
+    Logger::Logger( Logger const& orig )
+        : d ( orig.d ),
+          inpguard(orig.inpguard),
+          module(orig.module),
+          logline(),
+          inloglevel(orig.inloglevel)
+    {
+    }
+
     Logger::~Logger()
     {
-        delete d;
+        if ( !logline.str().empty() ) {
+            d->logit(inloglevel, module, logline, Logger::nl );
+        }
     }
 
     bool Logger::mayLog() const {
         return d->maylog();
     }
 
-    bool Logger::mayLogFile() const {
-        return d->maylogFile();
+    bool Logger::mayLog(LogLevel inloglevel) const {
+        return d->maylog(inloglevel);
     }
 
-    bool Logger::mayLogStdOut() const {
-        return d->maylogStdOut();
+    bool Logger::mayLogFile(LogLevel inloglevel) const {
+        return d->maylogFile(inloglevel);
+    }
+
+    bool Logger::mayLogStdOut(LogLevel inloglevel) const {
+        return d->maylogStdOut(inloglevel);
     }
 
     void Logger::mayLogStdOut(bool tf) {
@@ -374,6 +389,12 @@ namespace RTT
     TimeService::ticks Logger::getReferenceTime()const
     {
         return d->timestamp;
+    }
+
+    std::ostream&
+    Logger::nop(std::ostream& __os)
+    {
+        return __os;
     }
 
     std::ostream&
@@ -406,38 +427,35 @@ namespace RTT
 #endif
     }
 
-
-    Logger::In::In(const std::string& modname)
-        : oldmod( Logger::log().getLogModule() )
-    {
-        Logger::log().in(modname);
-    }
-
-    Logger::In::~In()
-    {
-        Logger::log().out(oldmod);
-    }
-
     Logger& Logger::in(const std::string& modname)
     {
-        os::MutexLock lock( d->inpguard );
-        d->moduleptr = modname.c_str();
+        module = modname;
         return *this;
     }
 
-    Logger& Logger::out(const std::string& oldmod)
+    In::In(const std::string& modname)
     {
-        os::MutexLock lock( d->inpguard );
-        d->moduleptr = oldmod.c_str();
-        return *this;
+        logger.in(modname);
     }
 
-    std::string Logger::getLogModule() const {
-        os::MutexLock lock( d->inpguard );
-        std::string ret = d->moduleptr.c_str();
-        return ret;
+    In::~In()
+    {
     }
 
+    Logger& In::log()
+    {
+        return logger;
+    }
+
+    Logger& In::log(Logger::LogLevel inloglevel)
+    {
+        return logger << inloglevel;
+    }
+
+    Logger& In::log(LoggerLevel inloglevel)
+    {
+        return logger << Logger::LogLevel(inloglevel);
+    }
 
 #define ORO_xstr(s) ORO_str(s)
 #define ORO_str(s) #s
@@ -486,7 +504,7 @@ namespace RTT
 #ifdef OROPKG_OS_XENOMAI
         *this<<" Running in Xenomai."<< Logger::nl;
 #endif
-        *this<<"Orocos Logging Activated at level : " << d->showLevel( d->outloglevel ) << " ( "<<int(d->outloglevel)<<" ) "<< Logger::nl;
+        *this<<"Orocos Logging Activated at level : " << d->showLevel( d->outloglevel ) <<"==" <<int(d->outloglevel)<<"] "<< Logger::nl;
         *this<<"Reference System Time is : " << d->timestamp << " ticks ( "<< Seconds(TimeService::ticks2nsecs(d->timestamp))/NSECS_IN_SECS <<" seconds )." << Logger::nl;
         *this<<"Logging is relative to this time." <<Logger::endl;
 #endif
@@ -530,14 +548,9 @@ namespace RTT
             return *this;
 
         os::MutexLock lock( d->inpguard );
-        if ( d->maylogStdOut() )
-            d->logline << t;
+        if ( d->maylog(inloglevel) )
+            logline << t;
 
-#if defined(OROSEM_FILE_LOGGING) || defined(OROSEM_REMOTE_LOGGING)
-        // log Info or better to log file, even if not started.
-        if ( d->maylogFile() )
-            d->fileline << t;
-#endif
         return *this;
     }
 
@@ -548,7 +561,7 @@ namespace RTT
     Logger& Logger::operator<<(LogLevel ll) {
         if ( !d->maylog() )
             return *this;
-        d->inloglevel = ll;
+        inloglevel = ll;
         return *this;
     }
 
@@ -564,12 +577,8 @@ namespace RTT
             this->logflush();
         else {
             os::MutexLock lock( d->inpguard );
-            if ( d->maylogStdOut() )
-                d->logline << pf; // normal std operator in stream.
-#if defined(OROSEM_FILE_LOGGING) || defined(OROSEM_REMOTE_LOGGING)
-            if ( d->maylogFile() )
-                d->fileline << pf;
-#endif
+            if ( d->maylog(inloglevel) )
+                logline << pf; // normal std operator in stream.
         }
         return *this;
     }
@@ -580,20 +589,16 @@ namespace RTT
         {
             // just flush all buffers, do not produce a new logline
             os::MutexLock lock( d->inpguard );
-            if ( d->maylogStdOut() ) {
 #ifndef OROSEM_PRINTF_LOGGING
-                d->stdoutput->flush();
+            d->stdoutput->flush();
 #endif
 #if defined(OROSEM_REMOTE_LOGGING)
-                d->remotestream.flush();
+            d->remotestream.flush();
 #endif
-            }
 #if defined(OROSEM_FILE_LOGGING)
-            if ( d->maylogFile() ) {
 #ifndef OROSEM_PRINTF_LOGGING
-                d->logfile.flush();
+            d->logfile.flush();
 #endif
-            }
 #endif
         }
      }
@@ -601,13 +606,15 @@ namespace RTT
     void Logger::lognl() {
         if (!d->maylog())
             return;
-        d->logit( Logger::nl );
+        d->logit(inloglevel, module, logline, Logger::nl );
+        logline.str("");
      }
 
     void Logger::logendl() {
         if (!d->maylog())
             return;
-        d->logit( Logger::endl );
+        d->logit(inloglevel, module, logline, Logger::endl );
+        logline.str("");
      }
 
     void Logger::setLogLevel( LogLevel ll ) {

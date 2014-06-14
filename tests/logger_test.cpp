@@ -55,7 +55,7 @@ struct TestLog
 
   void step() {
       Logger::In in("TLOG");
-      log(Info) << "Hello this is the world speaking elaborately and lengthy...!" <<endlog();
+      in.log(Info) << "Hello this is the world speaking elaborately and lengthy...!" <<endlog();
   }
 
   void finalize() {
@@ -69,7 +69,6 @@ BOOST_FIXTURE_TEST_SUITE( LoggerTestSuite, LoggerTest )
 BOOST_AUTO_TEST_CASE( testStartStop )
 {
     BOOST_CHECK( logger != 0 );
-    BOOST_CHECK( &Logger::log() != 0 );
 }
 
 BOOST_AUTO_TEST_CASE( testLogEnv )
@@ -88,16 +87,17 @@ BOOST_AUTO_TEST_CASE( testLogEnv )
 
 BOOST_AUTO_TEST_CASE( testNewLog )
 {
-    log( Debug )  << "Debug Level set + text"<< endlog();
-    log() << "Test Log Environment variable : Single line" << endlog(Debug);
-    log() << "Test Log Environment variable : Two ";
-    log() << "lines on one line." << endlog();
-    log() << "Test Log Environment variable : Two" << nlog();
-    log() << "lines on two lines." << endlog();
+    In in("testNewLog");
+    in.log( Debug )  << "Debug Level set + text"<< endlog();
+    in.log() << "Test Log Environment variable : Single line" << endlog(Debug);
+    in.log() << "Test Log Environment variable : Two ";
+    in.log() << "lines on one line." << endlog();
+    in.log() << "Test Log Environment variable : Two" << nlog();
+    in.log() << "lines on two lines." << endlog();
 
-    log() << "Test Log Environment variable : nl" << nlog();
-    log() << "Test Log Environment variable : flush" << flushlog();
-    log() << " and std::endl." << std::endl;
+    in.log() << "Test Log Environment variable : nl" << nlog();
+    in.log() << "Test Log Environment variable : flush" << flushlog();
+    in.log() << " and std::endl." << std::endl;
 }
 
 BOOST_AUTO_TEST_CASE( testThreadLog )
