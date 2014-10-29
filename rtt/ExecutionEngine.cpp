@@ -252,6 +252,13 @@ namespace RTT
             if (taskc && taskc->mTaskState == TaskCore::FatalError )
                 return false;
 
+            // Direct execution
+            if ( this->getActivity()->thread()->isSelf() ) {
+                c->executeAndDispose();
+                return true;
+            }
+
+            // Queued execution
             bool result = mqueue->enqueue( c );
             this->getActivity()->trigger();
             msg_cond.broadcast(); // required for waitAndProcessMessages() (EE thread)
