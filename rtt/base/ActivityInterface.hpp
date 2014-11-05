@@ -213,7 +213,9 @@ namespace RTT
 
         /**
          * Returns a pointer to the thread which will
-         * run this activity. Will not be null.
+         * run this activity. This can be null if the activity
+         * does not know its executing thread beforehand (e.g. for
+         * a SlaveActivity without a master).
          */
         virtual os::ThreadInterface* thread() = 0;
 

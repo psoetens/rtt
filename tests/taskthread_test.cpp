@@ -270,7 +270,7 @@ BOOST_AUTO_TEST_CASE( testSlave )
     BOOST_CHECK( mtask.isPeriodic() == false );
     BOOST_CHECK( mtask.getPeriod() == 0.0 );
     BOOST_CHECK( mtask.execute() == false );
-    BOOST_CHECK( mtask.thread() == os::MainThread::Instance() );
+    BOOST_CHECK( mtask.thread() == 0 );
 
     // starting...
     BOOST_CHECK( mtask.start() == true );
@@ -337,7 +337,7 @@ BOOST_AUTO_TEST_CASE( testSlave )
     BOOST_CHECK( mslave_p.isPeriodic() == true );
     BOOST_CHECK( mslave_p.getPeriod() == 0.001 );
     BOOST_CHECK( mslave_p.execute() == false );
-    BOOST_CHECK( mslave_p.thread() == os::MainThread::Instance() );
+    BOOST_CHECK( mslave_p.thread() == 0 );
 
     BOOST_CHECK( mslave_p.start() );
     BOOST_CHECK( r.init == true );
