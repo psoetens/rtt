@@ -47,3 +47,21 @@ void OperationCallerInterface::reportError() {
         this->myengine->setExceptionTask();
 }
 
+bool OperationCallerInterface::isSend() {
+    // ClientThread operations are never sent
+    if (met == ClientThread) return false;
+
+    // If we do not know on which engine will process the message. we better send it.
+    if (myengine == 0) return true;
+
+    // If the operation was called by ourselves, call it directly.
+    if (myengine == caller) return false;
+
+    // For example in case of master/slave activities, multiple engines can share one thread.
+    // In this case, even if the processor and caller engine is not the same, we still call if this thread is the same
+    // than the processor thread.
+    if (myengine != 0 && myengine->getThread() != 0 && myengine->getThread()->isSelf()) return false;
+
+    // otherwise, send it
+    return true;
+}

@@ -37,7 +37,6 @@
 
 
 #include "SlaveActivity.hpp"
-#include "../os/MainThread.hpp"
 #include "Logger.hpp"
 
 namespace RTT {
@@ -91,7 +90,7 @@ namespace RTT {
 
     os::ThreadInterface* SlaveActivity::thread()
     {
-        return mmaster ? mmaster->thread() : os::MainThread::Instance();
+        return mmaster ? mmaster->thread() : 0;
     }
 
     base::ActivityInterface *SlaveActivity::getMaster() const

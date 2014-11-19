@@ -76,7 +76,7 @@ namespace RTT
             /**
              * Helpful function to tell us if this operations is to be sent or not.
              */
-            bool isSend() { return met == OwnThread && myengine != caller; }
+            bool isSend();
 
             ExecutionEngine* getMessageProcessor() const;
 
