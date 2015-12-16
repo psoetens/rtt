@@ -638,6 +638,7 @@ namespace RTT
         struct PortCallback : public base::DisposableInterface {
             boost::function<void(void)> msf;
             virtual void executeAndDispose() {
+                if (msf.empty()) return;
                 msf();
             }
             virtual void dispose() {}
