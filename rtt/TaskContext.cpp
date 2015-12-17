@@ -141,6 +141,7 @@ namespace RTT
                 _task_map.erase( _task_map.begin() );
             }
             // Do not call this->disconnect() !!!
+            // Ports are probably already destructed by user code.
         }
 
     bool TaskContext::connectPorts( TaskContext* peer )
@@ -419,7 +420,12 @@ namespace RTT
     void TaskContext::dataOnPort(PortInterface* port)
     {
         if ( this->dataOnPortHook(port) ) {
-            engine()->process(&user_callbacks[port]);
+            // Note: The user_callbacks map is not protected by a mutex here.
+            // It is the user's responsability to disconnect all event ports before
+            // adding or removing, which would modify the user_callbacks map.
+            PortCallback *callback = &user_callbacks[port];
+            if (callback->msf.empty()) return;
+            engine()->processPortCallback(callback);
         }
     }
 
@@ -437,7 +443,7 @@ namespace RTT
         MutexLock lock(mportlock);
         UserCallbacks::iterator it = user_callbacks.find(port);
         if (it != user_callbacks.end() ) {
-            user_callbacks.erase(it);
+            it->second.msf.clear();
         }
     }
 }
