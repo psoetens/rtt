@@ -126,6 +126,8 @@ namespace RTT
                 return false;
             f->loaded(this);
             bool result = f_queue->enqueue( f );
+            // signal work is to be done:
+            this->getActivity()->trigger();
             return result;
         }
         return false;
@@ -399,6 +401,12 @@ namespace RTT
             /* Callback step */
             processMessages();
             processPortCallbacks();
+
+            // If this engine is run by a periodic activity, functions are only
+            // processed after a timeout (see below). Otherwise process as soon
+            // as possible.
+            if (!this->getActivity() || !this->getActivity()->isPeriodic()) processFunctions();
+
         } else if (reason == RunnableInterface::TimeOut || reason == RunnableInterface::IOReady) {
             /* Update step */
             processMessages();
